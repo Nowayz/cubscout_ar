@@ -1,0 +1,74 @@
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+<script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+
+<script>
+// Create 3D Canvas
+var canvas = document.createElement('canvas');
+canvas.style.width = '100%';
+canvas.style.height = '100%';
+canvas.style.overflow = 'hidden';
+canvas.style.outline = 'none';
+document.addEventListener('DOMContentLoaded', () => {
+    document.body.style.margin = 0;
+    document.body.append(canvas); // Add to document
+    const engine = new BABYLON.Engine(canvas, true); // Generate the BABYLON 3D engine
+    let scene;
+
+    BABYLON.SceneLoader.Load("./", "cubscout_camp_packed.glb", engine, (newScene) => {
+        scene = newScene;
+        scene.createDefaultCamera(true, true, true);
+        scene.createDefaultEnvironment({
+            createGround: false,
+            createSkybox: false,
+        });
+    
+        // Set background color to sky blue
+        scene.clearColor = new BABYLON.Color4((115/255)-.2, (215/255)-.2, (255/255)-.2, 1);
+
+        // Add clipping plane for everything under 0, 0, 0
+        const clippingPlane = new BABYLON.Plane(0, -1, 0, 0);
+        scene.clipPlane = clippingPlane;
+
+        scene.activeCamera.position = new BABYLON.Vector3(8.701375517510863, 6.243523890856941, -11.397881634252279);
+        scene.activeCamera.setTarget(new BABYLON.Vector3(-0.8146556368528799, 2.3272755722857514, 1.154336509716886));
+        scene.activeCamera.fov =  .8;
+        scene.activeCamera.wheelPrecision = 10;
+        scene.activeCamera.pinchPrecision = 500;
+        scene.activeCamera.inertia = 0;
+        window.scene = scene;
+
+        // find a mesh called "video_screen"
+        const video_screen = scene.getMeshByName("video_screen");
+        const video_material = new BABYLON.StandardMaterial("video_material", scene); 
+        const video_texture  = new BABYLON.VideoTexture("video_tex", "video_small.mp4", scene);
+
+        video_material.diffuseTexture = video_texture;
+        video_material.roughness = 1;
+        video_material.emissiveColor = new BABYLON.Color3.White();
+        video_screen.material = video_material;
+
+        setTimeout(() => {
+            // Play animation group called "Wave 01" then play animation group "Idle 01" when the first one is done
+            const animation_group = scene.getAnimationGroupByName("Wave 01");
+            animation_group.onAnimationEndObservable.add(() => {
+                const animation_group_idle = scene.getAnimationGroupByName("Idle 01");
+                animation_group_idle.play(true);
+            });
+            animation_group.play();
+        }, 2000);
+    });
+
+    engine.runRenderLoop(() => {
+        if(scene) {
+            scene.render();
+        }
+    });
+
+    window.addEventListener("resize", () => {
+        engine.resize();
+    });
+
+}, false);
+
+</script>
