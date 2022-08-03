@@ -3,8 +3,44 @@
 <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
 <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
 
+<div id="intro-screen" style="z-index:100;height: 100%;width: 100%;background: #ffffff15;position: fixed;backdrop-filter: blur(25px);display: flex;flex-wrap: nowrap;flex-direction: column;align-items: center;justify-content: space-evenly;">
+    <div style="height: 60%; width: 100%"></div>
+    <img id="intro-msg" src="intro_screen.svg" style="max-width: 80%; height: 100%; opacity: 1"></img>
+    <div style="height: 60%; width: 100%"></div>
+</div>
+
 <script type="module">
-//import TWEEN from "https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.esm.min.js";
+import TWEEN from "https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.esm.min.js";
+// Pass parameter 'a' to specify tightness
+const easeOutSigmoid = (a) => (t) => (0.5 / (1 / (1 + Math.exp(-a)) - 0.5)) * (1 / (1 + Math.exp(-a * (2 * ((t + 0.5) / 1.5) - 1))) - 0.5) + 0.5;
+const easeSigmoid = (a) => (t) => (0.5 / (1 / (1 + Math.exp(-a)) - 0.5)) * (1 / (1 + Math.exp(-a * (2 * t - 1))) - 0.5) + 0.5;
+
+// Promise to start the animation
+let startResolve;
+const startPromise = new Promise((resolve) => {
+    startResolve = resolve;
+});
+const introScreen = document.getElementById("intro-screen");
+const introMsg = document.getElementById("intro-msg");
+introScreen.addEventListener("click", () => {
+    // Fade SVG to transparent
+    new TWEEN.Tween(introMsg.style)
+        .to({ opacity: 0 }, 500)
+        .onComplete(() => {
+            introMsg.style.display = "none";
+    }).start()
+    // Unblur start screen
+    new TWEEN.Tween({blur: 25})
+        .to({blur: 0}, 1000)
+        .easing(TWEEN.Easing.Quadratic.Out)
+        .onUpdate(({blur}) => {
+            introScreen.style.backdropFilter = `blur(${blur}px)`;
+        })
+        .onComplete(() => {
+            introScreen.style.display = "none";
+            startResolve();
+    }).start();
+});
 
 // Create 3D Canvas
 var canvas = document.createElement('canvas');
@@ -54,11 +90,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const clippingPlane = new BABYLON.Plane(0, -1, 0, 0);
         scene.clipPlane = clippingPlane;
 
-        scene.activeCamera.position = new BABYLON.Vector3(.1*8.701375517510863, .1*6.243523890856941, .1*-11.397881634252279);
-        scene.activeCamera.setTarget(new BABYLON.Vector3(.1*-0.8146556368528799, .1*2.3272755722857514, .1*1.154336509716886));
+        const cameraInitPos = new BABYLON.Vector3(8.701375517510863, 6.243523890856941, -11.397881634252279);
+        const targetInitPos = new BABYLON.Vector3(-0.8146556368528799, 2.3272755722857514, 1.154336509716886);
+        scene.activeCamera.position = cameraInitPos;
+        scene.activeCamera.setTarget(targetInitPos);
         scene.activeCamera.fov =  .8;
         scene.activeCamera.wheelPrecision = 10;
         scene.activeCamera.pinchPrecision = 150;
+        scene.activeCamera.panningInertia = 0;
+        scene.activeCamera.panningSensibility = 1000;
+
         scene.activeCamera.inertia = 0;
         window.scene = scene;
 
@@ -66,15 +107,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const video_screen = scene.getMeshByName("video_screen");
         const video_material = new BABYLON.StandardMaterial("video_material", scene); 
         const video_texture  = new BABYLON.VideoTexture("video_tex", "video_small.mp4", scene);
-        const voice_over = new BABYLON.Sound("voice_over", "Pack 395.mp3", scene, null, { 
-            loop: false,
-            autoplay: true 
-        });
-        
         video_material.diffuseTexture = video_texture;
         video_material.roughness = 1;
         video_material.emissiveColor = new BABYLON.Color3.White();
         video_screen.material = video_material;
+
+        // Pause until user has tapped
+        await startPromise;
+
+        // Fly camera down to the campsite
+        new TWEEN.Tween({n:1})
+          .to({n:.1}, 1000)
+          .easing(easeSigmoid(7))
+          .onUpdate(({n}) => {
+            const newCameraPos = new BABYLON.Vector3().copyFrom(cameraInitPos).scaleInPlace(n);
+            scene.activeCamera.position = newCameraPos;
+        }).start();
+        
+        // Fly camera target down slightly slower to get a "settling" feel
+        new TWEEN.Tween({n:1})
+          .to({n:.1}, 1700)
+          .easing(easeOutSigmoid(7))
+          .onUpdate(({n}) => {
+            const newTargetPos = new BABYLON.Vector3().copyFrom(targetInitPos).scaleInPlace(n);
+            scene.activeCamera.setTarget(newTargetPos);
+        }).start();
+
+        const voice_over = new BABYLON.Sound("voice_over", "Pack 395.mp3", scene, null, { 
+            loop: false,
+            autoplay: true 
+        });
 
         setTimeout(() => {
             // Play animation group called "Wave 01" then play animation group "Idle 01" when the first one is done
@@ -84,13 +146,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 animation_group_idle.play(true);
             });
             animation_group.play();
-        }, 2000);
+        }, 500);
     });
 
     engine.runRenderLoop(() => {
         if(scene) {
             scene.render();
-            //TWEEN.update();
+            TWEEN.update();
         }
     });
 
