@@ -20,9 +20,14 @@ let startResolve;
 const startPromise = new Promise((resolve) => {
     startResolve = resolve;
 });
+let scene;
 const introScreen = document.getElementById("intro-screen");
 const introMsg = document.getElementById("intro-msg");
 introScreen.addEventListener("click", () => {
+    const voice_over = new BABYLON.Sound("voice_over", "Pack 395.mp3", scene, null, { 
+            loop: false,
+            autoplay: true 
+    });
     // Fade SVG to transparent
     new TWEEN.Tween(introMsg.style)
         .to({ opacity: 0 }, 500)
@@ -52,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.style.margin = 0;
     document.body.append(canvas); // Add to document
     const engine = new BABYLON.Engine(canvas, true); // Generate the BABYLON 3D engine
-    let scene;
+    
 
     BABYLON.SceneLoader.Load("./", "cubscout_camp_packed.glb", engine, async (newScene) => {
         scene = newScene;
@@ -133,10 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
             scene.activeCamera.setTarget(newTargetPos);
         }).start();
 
-        const voice_over = new BABYLON.Sound("voice_over", "Pack 395.mp3", scene, null, { 
-            loop: false,
-            autoplay: true 
-        });
+
 
         setTimeout(() => {
             // Play animation group called "Wave 01" then play animation group "Idle 01" when the first one is done
